@@ -4,7 +4,7 @@ class Square {
         this.y = y;
         this.color = null;
         this.pieceHere = false;
-        this.downNeighbor = null;
+        this.neighbors = null;
     }
 
     setColor(color) {

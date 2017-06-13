@@ -14,19 +14,28 @@ class Board {
     }
   
     getDownNeighbor(square) {
-        let downNeighbor;
+        let neighbors = {}
         let x = square.x;
         let y = square.y;
+        // down neighbors
         if (y + 1 < this.data.length) {
-            downNeighbor = this.fetchSquare(x, y + 1);
+            neighbors.downNeighbor = this.fetchSquare(x, y + 1);
         }
-        return downNeighbor;
+        // neighbors to right
+        if (x + 1 < this.data[0].length) {
+            neighbors.rightNeighbor = this.fetchSquare(x + 1, y);
+        }
+        // neighbors to the left
+        if (x !== 0) {
+            neighbors.leftNeighbor = this.fetchSquare(x - 1, y);
+        }
+        return neighbors;
     }
 
     populateNeighbors() {
         for (let row of this.data) {
             for (let square of row) {
-                square.downNeighbor = this.getDownNeighbor(square);
+                square.neighbors = this.getDownNeighbor(square);
             }
         }
     }
