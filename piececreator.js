@@ -1,9 +1,10 @@
-class Piece {
+class PieceCreator {
     constructor(name) {
         this.name = name;
         let something = this.createPiece(name);
         this.data = something[0];
         this.color = something[1];
+        this.id = Utilities.randinteger(99999);
     }
 
     createPiece(name) {    

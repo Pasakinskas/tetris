@@ -6,43 +6,147 @@ class Game {
     }
 
     placeTetrimino(name) {
-        let piece = new Piece(name);
+        let piece = new PieceCreator(name);
         let startPoint = Math.round(this.players[0].board.width / 2) - 2;
         let squaresOfPiece = [];
-        // take out the hardcoded fours
+
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 if (piece.data[j][i] == 1) {
-                    this.players[0].board.fetchSquare(i + startPoint, j).setPieceHere(piece.color);
+                    this.players[0].board.fetchSquare(i + startPoint, j).setPieceHere(piece);
                     squaresOfPiece.push(this.players[0].board.fetchSquare(i + startPoint, j));
                 }
             }
         }
-        return squaresOfPiece;
+        let tetrimino = new Tetrimino(piece.color, squaresOfPiece, piece.id);        
+        return tetrimino;
     }
 
-    goDown(squaresOfTetrimino) {
-        let color = squaresOfTetrimino[0].getColor();
-        let movedTetrimino = [];
-        for (let square of squaresOfTetrimino) {
-            if (!square.neighbors.downNeighbor) {
-                console.log("sutikau grindis");
-                return null;
+    canTetriminoMove(tetrimino, dir) {
+        if (dir === "down") {
+            for (let square of tetrimino.tetriminoSquares) {
+                if (!square.neighbors.downNeighbor) {
+                    console.log("sutikau grindis");
+                    return false;
+                }
+                if (square.neighbors.downNeighbor.pieceHere &&
+                    !tetrimino.tetriminoSquares.includes(square.neighbors.downNeighbor)) {
+                    console.log("sutikau drauga");
+                    return false;
+                }
             }
-            if (square.neighbors.downNeighbor.pieceHere && !squaresOfTetrimino.includes(square.neighbors.downNeighbor)) {
-                console.log("sutikau drauga");
-                return null;
-            }
+            return true;
         }
-        for (let square of squaresOfTetrimino) {
+        else if (dir === "left") {
+            for (let square of tetrimino.tetriminoSquares) {
+                if (!square.neighbors.leftNeighbor) {
+                    console.log("atsitrenkiau i sona");
+                    return false;
+                }
+                if (square.neighbors.leftNeighbor.pieceHere &&
+                    !tetrimino.tetriminoSquares.includes(square.neighbors.leftNeighbor)) {
+                    console.log("sutikau drauga is sono");
+                    return false;
+                }
+            }
+            return true;
+        }
+        else if (dir === "right") {
+            for (let square of tetrimino.tetriminoSquares) {
+                if (!square.neighbors.rightNeighbor) {
+                    console.log("atsitrenkiau i sona");
+                    return false;
+                }
+                if (square.neighbors.rightNeighbor.pieceHere &&
+                    !tetrimino.tetriminoSquares.includes(square.neighbors.rightNeighbor)) {
+                    console.log("sutikau drauga is sono");
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    moveTetrimino(tetrimino, direction) {
+        let canTetriMove = this.canTetriminoMove(tetrimino, direction);
+        let movedTetriminoSquares = [];
+        let dictDir = {
+            "down": [0, 1],
+            "left": [-1, 0],
+            "right": [1, 0]
+        };
+
+        if (!canTetriMove && direction === "down") {
+            return;
+        }
+        else if (!canTetriMove && direction !== "down") {
+            return tetrimino;
+        }
+
+        for (let square of tetrimino.tetriminoSquares) {
             square.setNeutral();
         }
-        for (let square of squaresOfTetrimino) {
-            let newSquare = this.players[0].board.fetchSquare(square.x, square.y + 1);
-            newSquare.setPieceHere(color);
-            movedTetrimino.push(newSquare);
-        }   
-        return movedTetrimino;
+
+        for (let square of tetrimino.tetriminoSquares) {
+            let newSquare = this.players[0].board.fetchSquare(square.x + dictDir[direction][0], square.y + dictDir[direction][1]);
+            newSquare.setPieceHere(tetrimino);
+            movedTetriminoSquares.push(newSquare);
+        }
+        tetrimino.setTetriminoSquares(movedTetriminoSquares);
+        return tetrimino;
+    }
+
+    transpose(a) {
+        return Object.keys(a[0]).map(function(c) {
+            return a.map(function(r) { return r[c]; });
+        });
+    }
+
+    rotate(pieceInfo) {
+        let pieceAndEmptySqrs = pieceInfo.pieceSquares;
+        let pieceMatrix = [];
+        let coordsMatrix = [];
+        let returnMatrix = [];
+        let indexNumber = 0;
+
+        for (let i = 0; i < 4; i++) {
+            let row = [];
+            for (let j = 0; j < 4; j++) {
+                row.push(pieceAndEmptySqrs[indexNumber])
+                indexNumber++;
+            }
+            pieceMatrix.push(row);
+        }
+
+        for (let row of pieceMatrix) {
+            let listRow = [];
+            for (let square of row) {
+                listRow.push([square.x, square.y]);
+            }
+            coordsMatrix.push(listRow);
+        }
+
+        coordsMatrix = this.transpose(coordsMatrix);
+
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                pieceMatrix[i][j].x = coordsMatrix[i][j][0];
+                pieceMatrix[i][j].y = coordsMatrix[i][j][1];
+            }
+        }
+
+        for (let row of pieceMatrix) {
+            for (let square of row) {
+                returnMatrix.push(square);
+            }
+        }
+
+        let movedInfo = {
+            color: pieceInfo.color,
+            pieceSquares: returnMatrix,
+            id: pieceInfo.id
+        }
+        return movedInfo;
     }
 
     createPlayers() {
@@ -88,81 +192,35 @@ class Game {
                 noTetrimino = false;
             }
             else {
-                if (tetrimino === null) {
+                if (tetrimino == null) {
                     noTetrimino = true;
                 }
-                else {
+                else { 
                     document.addEventListener("keydown", () => {
                         if (!keyIsPressed) {
                             keyIsPressed = true;
-                            let color = tetrimino[0].getColor();
-                            let movedTetrimino = [];
                             if (event.code == "KeyD") {
-                                for (let square of tetrimino) {
-                                    if (square.neighbors.rightNeighbor.pieceHere && 
-                                        !tetrimino.includes(square.neighbors.rightNeighbor)) {
-                                        console.log("sutikau drauga is sono");
-                                        return;
-                                    }
-                                    if (!square.neighbors.rightNeighbor) {
-                                        return;
-                                    }
-                                }
-                                for (let square of tetrimino) {
-                                    square.setNeutral();
-                                }
-                                for (let square of tetrimino) {
-                                    let newSquare = this.players[0].board.fetchSquare(square.x + 1, square.y);
-                                    newSquare.setPieceHere(color);
-                                    movedTetrimino.push(newSquare);
-                                }
-                                tetrimino = movedTetrimino;
+                                tetrimino = this.moveTetrimino(tetrimino, "right");
                                 this.drawPlayers();
                             }
                             else if (event.code == "KeyA") {
-                                for (let square of tetrimino) {
-                                    if (square.neighbors.leftNeighbor.pieceHere && 
-                                        !tetrimino.includes(square.neighbors.leftNeighbor)) {
-                                        console.log("sutikau drauga is sono");
-                                        return;
-                                    }
-                                    if (!square.neighbors.leftNeighbor) {
-                                        return;
-                                    }
-                                }
-                                for (let square of tetrimino) {
-                                    square.setNeutral();
-                                }
-                                for (let square of tetrimino) {
-                                    let newSquare = this.players[0].board.fetchSquare(square.x - 1, square.y);
-                                    newSquare.setPieceHere(color);
-                                    movedTetrimino.push(newSquare);
-                                }
-                                tetrimino = movedTetrimino;
+                                tetrimino = this.moveTetrimino(tetrimino, "left");
                                 this.drawPlayers();
                             }
                             else if (event.code == "KeyW") {
-                                for (let square of tetrimino) {
-                                    square.setNeutral();
-                                }
-                                for (let square of tetrimino) {
-                                    let newSquare = this.players[0].board.fetchSquare(square.y, square.x);
-                                    newSquare.setPieceHere(color);
-                                    movedTetrimino.push(newSquare);
-                                }
-                                tetrimino = movedTetrimino;
+                                tetrimino = this.rotate(tetrimino);
                                 this.drawPlayers();
                             }
                         }
                     });
-                    tetrimino = this.goDown(tetrimino);
+                    tetrimino = this.moveTetrimino(tetrimino, "down");
                     document.addEventListener("keyup", () => {
                         keyIsPressed = false;
                     });
                 }
             }
             this.drawPlayers(); 
-        }.bind(this), 600);
+        }.bind(this), 450);
     }
 }
 

@@ -5,6 +5,7 @@ class Square {
         this.color = null;
         this.pieceHere = false;
         this.neighbors = null;
+        this.id = null
     }
 
     setColor(color) {
@@ -20,11 +21,9 @@ class Square {
         this.color = null;
     }
 
-    setPieceHere(color) {
-        // I'm setting the color here too
-        // to avoid repetition further into the code,
-        // because I want to set and reset the piece being there
+    setPieceHere(tetrimino) {
         this.pieceHere = true;
-        this.color = color;
+        this.color = tetrimino.color;
+        this.id = tetrimino.id;
     }
 }
