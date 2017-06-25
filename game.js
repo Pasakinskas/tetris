@@ -6,19 +6,22 @@ class Game {
     }
 
     placeTetrimino(name) {
-        let piece = new PieceCreator(name);
+        // will need that id for piece, so it can decide, can it
+        // actually rotate. To differenciate between itself and others.
+        let tetrimino = new Tetrimino(name);
         let startPoint = Math.round(this.players[0].board.width / 2) - 2;
         let squaresOfPiece = [];
+        tetrimino.setOriginPoint(this.players[0].board.fetchSquare(startPoint, 0));
 
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
-                if (piece.data[j][i] == 1) {
-                    this.players[0].board.fetchSquare(i + startPoint, j).setPieceHere(piece);
+                if (tetrimino.instructions[j][i] == 1) {
+                    this.players[0].board.fetchSquare(i + startPoint, j).setPieceHere(tetrimino);
                     squaresOfPiece.push(this.players[0].board.fetchSquare(i + startPoint, j));
                 }
             }
         }
-        let tetrimino = new Tetrimino(piece.color, squaresOfPiece, piece.id);        
+        tetrimino.setTetriminoSquares(squaresOfPiece);    
         return tetrimino;
     }
 
@@ -68,14 +71,22 @@ class Game {
     }
 
     moveTetrimino(tetrimino, direction) {
+        // moveTetrimino shouldnt concern itself with moving origen point
+        // will have to divide into two or more pieces. After proof of concept
         let canTetriMove = this.canTetriminoMove(tetrimino, direction);
         let movedTetriminoSquares = [];
-        let dictDir = {
+        let dirDict = {
             "down": [0, 1],
             "left": [-1, 0],
             "right": [1, 0]
         };
-
+        let origenPoint = tetrimino.getOriginPoint();
+        let movedOriX = origenPoint.x + dirDict[direction][0];
+        let movedOriY = origenPoint.y + dirDict[direction][1];
+        let movedOriPoint = this.players[0].board.fetchSquare(movedOriX, movedOriY);
+        if (!movedOriPoint) {
+            movedOriPoint = new Square(movedOriX, movedOriY);
+        }
         if (!canTetriMove && direction === "down") {
             return;
         }
@@ -88,65 +99,41 @@ class Game {
         }
 
         for (let square of tetrimino.tetriminoSquares) {
-            let newSquare = this.players[0].board.fetchSquare(square.x + dictDir[direction][0], square.y + dictDir[direction][1]);
+            let movedX = square.x + dirDict[direction][0];
+            let movedY = square.y + dirDict[direction][1];
+            let newSquare = this.players[0].board.fetchSquare(movedX, movedY);
+            
             newSquare.setPieceHere(tetrimino);
             movedTetriminoSquares.push(newSquare);
         }
+        tetrimino.setOriginPoint(movedOriPoint);
         tetrimino.setTetriminoSquares(movedTetriminoSquares);
         return tetrimino;
     }
 
-    transpose(a) {
-        return Object.keys(a[0]).map(function(c) {
-            return a.map(function(r) { return r[c]; });
-        });
-    }
+    rotate(tetrimino) {
+        // if new piece in place of pieces, that do not have
+        // "mine" id, i cant flip. Tetrimino cant be placed in the last
+        // to the left. due to origin point becoming undefined
+        let movedTetriminoSquares = [];
+        let rotatedInstructions = this.rotateMatrix(tetrimino.instructions);
+        tetrimino.instructions = rotatedInstructions;
+        let origin = tetrimino.getOriginPoint();
 
-    rotate(pieceInfo) {
-        let pieceAndEmptySqrs = pieceInfo.pieceSquares;
-        let pieceMatrix = [];
-        let coordsMatrix = [];
-        let returnMatrix = [];
-        let indexNumber = 0;
-
-        for (let i = 0; i < 4; i++) {
-            let row = [];
-            for (let j = 0; j < 4; j++) {
-                row.push(pieceAndEmptySqrs[indexNumber])
-                indexNumber++;
-            }
-            pieceMatrix.push(row);
+        for (let square of tetrimino.tetriminoSquares) {
+            square.setNeutral();
         }
-
-        for (let row of pieceMatrix) {
-            let listRow = [];
-            for (let square of row) {
-                listRow.push([square.x, square.y]);
-            }
-            coordsMatrix.push(listRow);
-        }
-
-        coordsMatrix = this.transpose(coordsMatrix);
 
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
-                pieceMatrix[i][j].x = coordsMatrix[i][j][0];
-                pieceMatrix[i][j].y = coordsMatrix[i][j][1];
+                if (rotatedInstructions[j][i] == 1) {
+                    this.players[0].board.fetchSquare(origin.x + i, origin.y + j).setPieceHere(tetrimino);
+                    movedTetriminoSquares.push(this.players[0].board.fetchSquare(origin.x + i, origin.y + j));
+                }
             }
         }
-
-        for (let row of pieceMatrix) {
-            for (let square of row) {
-                returnMatrix.push(square);
-            }
-        }
-
-        let movedInfo = {
-            color: pieceInfo.color,
-            pieceSquares: returnMatrix,
-            id: pieceInfo.id
-        }
-        return movedInfo;
+        tetrimino.setTetriminoSquares(movedTetriminoSquares);
+        return tetrimino;
     }
 
     createPlayers() {
@@ -165,26 +152,52 @@ class Game {
         this.graphics.draw(dataList);
     }
 
+    rotateMatrix(matrix) {
+        let newMatrix = [[], [], [], []];
+        for (let i = 3; i >= 0; i--) {
+            for (let j = 0; j < 4; j++) {
+                newMatrix[j].push(matrix[i][j]);
+            }
+        }
+        return newMatrix;
+    }
+
     start () {
         this.createPlayers();
         this.graphics = new Graphics({
-            cellWidth: 25,
-            cellHeight: 25,
-            spcBetweenSquares: 2,
+            cellWidth: 20,
+            cellHeight: 20,
+            spcBetweenSquares: 3,
             boardWidth: this.boardWidth,
             boardHeight: this.boardHeight,
             playerNumber: this.players.length,
             backgroundColor: "grey",
             emptySquare: "black"
         });
+
         this.drawPlayers();
         this.update();
     }
 
+
     update() {
         let noTetrimino = true;
         let tetrimino;
-        let keyIsPressed = false;
+
+        document.addEventListener("keydown", () => {
+            if (event.code == "KeyD") {
+                tetrimino = this.moveTetrimino(tetrimino, "right");
+                this.drawPlayers();
+            }
+            if (event.code == "KeyA") {
+                tetrimino = this.moveTetrimino(tetrimino, "left");
+                this.drawPlayers();
+            }
+            if (event.code == "KeyW") {
+                tetrimino = this.rotate(tetrimino);
+                this.drawPlayers();
+            }
+        });
 
         window.setInterval(function () {
             if (noTetrimino === true) {
@@ -196,31 +209,11 @@ class Game {
                     noTetrimino = true;
                 }
                 else { 
-                    document.addEventListener("keydown", () => {
-                        if (!keyIsPressed) {
-                            keyIsPressed = true;
-                            if (event.code == "KeyD") {
-                                tetrimino = this.moveTetrimino(tetrimino, "right");
-                                this.drawPlayers();
-                            }
-                            else if (event.code == "KeyA") {
-                                tetrimino = this.moveTetrimino(tetrimino, "left");
-                                this.drawPlayers();
-                            }
-                            else if (event.code == "KeyW") {
-                                tetrimino = this.rotate(tetrimino);
-                                this.drawPlayers();
-                            }
-                        }
-                    });
                     tetrimino = this.moveTetrimino(tetrimino, "down");
-                    document.addEventListener("keyup", () => {
-                        keyIsPressed = false;
-                    });
                 }
             }
-            this.drawPlayers(); 
-        }.bind(this), 450);
+            this.drawPlayers();
+        }.bind(this), 500);
     }
 }
 
