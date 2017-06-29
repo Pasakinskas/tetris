@@ -12,8 +12,20 @@ class Board {
         else
             return null;
     }
+
+    moveSquare(square, x, y) {
+        let movedX = square.x + x;
+        let movedY = square.y + y;
+        let movedSquare = this.fetchSquare(movedX, movedY);
+
+        movedSquare.setColor(square.getColor());
+        if (square.pieceHere) {
+            movedSquare.pieceHere == true;
+        }
+        return movedSquare;
+    }
   
-    getDownNeighbor(square) {
+    getNeighbors(square) {
         let neighbors = {}
         let x = square.x;
         let y = square.y;
@@ -35,7 +47,7 @@ class Board {
     populateNeighbors() {
         for (let row of this.data) {
             for (let square of row) {
-                square.neighbors = this.getDownNeighbor(square);
+                square.neighbors = this.getNeighbors(square);
             }
         }
     }

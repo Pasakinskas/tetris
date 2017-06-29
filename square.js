@@ -1,5 +1,5 @@
 class Square {
-    constructor (x, y, color, pieceHere, downNeighbor) {
+    constructor (x, y, color, pieceHere) {
         this.x = x;
         this.y = y;
         this.color = null;
@@ -24,5 +24,6 @@ class Square {
     setPieceHere(tetrimino) {
         this.pieceHere = true;
         this.color = tetrimino.color;
+        this.id = tetrimino.id;
     }
 }

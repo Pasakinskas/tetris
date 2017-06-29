@@ -11,13 +11,17 @@ class Game {
         let tetrimino = new Tetrimino(name);
         let startPoint = Math.round(this.players[0].board.width / 2) - 2;
         let squaresOfPiece = [];
-        tetrimino.setOriginPoint(this.players[0].board.fetchSquare(startPoint, 0));
+        let tetriOriginSquare = this.players[0].board.fetchSquare(startPoint, 0);
+
+        tetrimino.setOriginPoint(tetriOriginSquare);
 
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 if (tetrimino.instructions[j][i] == 1) {
-                    this.players[0].board.fetchSquare(i + startPoint, j).setPieceHere(tetrimino);
-                    squaresOfPiece.push(this.players[0].board.fetchSquare(i + startPoint, j));
+                    let squareTetriHere = this.players[0].board.fetchSquare(i + startPoint, j);
+
+                    squareTetriHere.setPieceHere(tetrimino);
+                    squaresOfPiece.push(squareTetriHere);
                 }
             }
         }
@@ -25,56 +29,49 @@ class Game {
         return tetrimino;
     }
 
-    canTetriminoMove(tetrimino, dir) {
-        if (dir === "down") {
-            for (let square of tetrimino.tetriminoSquares) {
-                if (!square.neighbors.downNeighbor) {
-                    console.log("sutikau grindis");
-                    return false;
-                }
-                if (square.neighbors.downNeighbor.pieceHere &&
-                    !tetrimino.tetriminoSquares.includes(square.neighbors.downNeighbor)) {
-                    console.log("sutikau drauga");
-                    return false;
-                }
+    canTetriminoMove(tetrimino, direction) {
+        for (let square of tetrimino.tetriminoSquares) {
+            let dirDict = {
+                "down": square.neighbors.downNeighbor,
+                "left": square.neighbors.leftNeighbor,
+                "right": square.neighbors.rightNeighbor
+            };
+
+            if (!dirDict[direction]) {
+                console.log("neradau kaimyno, siena");
+                return false;
             }
-            return true;
-        }
-        else if (dir === "left") {
-            for (let square of tetrimino.tetriminoSquares) {
-                if (!square.neighbors.leftNeighbor) {
-                    console.log("atsitrenkiau i sona");
-                    return false;
-                }
-                if (square.neighbors.leftNeighbor.pieceHere &&
-                    !tetrimino.tetriminoSquares.includes(square.neighbors.leftNeighbor)) {
-                    console.log("sutikau drauga is sono");
-                    return false;
-                }
+            if (dirDict[direction].pieceHere &&
+                !tetrimino.tetriminoSquares.includes(dirDict[direction])) {
+                console.log("judejimo kryptimi sutinku kita tetrimina");
+                return false;
             }
-            return true;
         }
-        else if (dir === "right") {
-            for (let square of tetrimino.tetriminoSquares) {
-                if (!square.neighbors.rightNeighbor) {
-                    console.log("atsitrenkiau i sona");
-                    return false;
-                }
-                if (square.neighbors.rightNeighbor.pieceHere &&
-                    !tetrimino.tetriminoSquares.includes(square.neighbors.rightNeighbor)) {
-                    console.log("sutikau drauga is sono");
-                    return false;
-                }
-            }
-            return true;
-        }
+        return true;
     }
 
-    moveTetrimino(tetrimino, direction) {
-        // moveTetrimino shouldnt concern itself with moving origen point
-        // will have to divide into two or more pieces. After proof of concept
-        let canTetriMove = this.canTetriminoMove(tetrimino, direction);
+    canTetriminoRotate(tetrimino) {
         let movedTetriminoSquares = [];
+        let rotatedInstructions = Utilities.rotateMatrix(tetrimino.instructions);
+        let origin = tetrimino.getOriginPoint();
+
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                if (rotatedInstructions[j][i] == 1) {
+                    let rotatedSquare = this.players[0].board.fetchSquare(origin.x + i, origin.y + j);
+                    if (!rotatedSquare) {
+                        return false;
+                    }
+                    if (rotatedSquare.pieceHere && rotatedSquare.id !== tetrimino.id) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    moveOriginPoint(tetrimino, direction) {
         let dirDict = {
             "down": [0, 1],
             "left": [-1, 0],
@@ -84,9 +81,23 @@ class Game {
         let movedOriX = origenPoint.x + dirDict[direction][0];
         let movedOriY = origenPoint.y + dirDict[direction][1];
         let movedOriPoint = this.players[0].board.fetchSquare(movedOriX, movedOriY);
+
         if (!movedOriPoint) {
             movedOriPoint = new Square(movedOriX, movedOriY);
         }
+        tetrimino.setOriginPoint(movedOriPoint);
+        return tetrimino;
+    }
+
+    moveTetrimino(tetrimino, direction) {
+        let canTetriMove = this.canTetriminoMove(tetrimino, direction);
+        let movedTetriminoSquares = [];
+        let dirDict = {
+            "down": [0, 1],
+            "left": [-1, 0],
+            "right": [1, 0]
+        };
+        
         if (!canTetriMove && direction === "down") {
             return;
         }
@@ -99,24 +110,28 @@ class Game {
         }
 
         for (let square of tetrimino.tetriminoSquares) {
-            let movedX = square.x + dirDict[direction][0];
-            let movedY = square.y + dirDict[direction][1];
-            let newSquare = this.players[0].board.fetchSquare(movedX, movedY);
+            let moveX = dirDict[direction][0];
+            let moveY = dirDict[direction][1];
+            let newSquare = this.players[0].board.moveSquare(square, moveX, moveY);
             
             newSquare.setPieceHere(tetrimino);
             movedTetriminoSquares.push(newSquare);
         }
-        tetrimino.setOriginPoint(movedOriPoint);
+
+        this.moveOriginPoint(tetrimino, direction);
         tetrimino.setTetriminoSquares(movedTetriminoSquares);
         return tetrimino;
     }
 
     rotate(tetrimino) {
         // if new piece in place of pieces, that do not have
-        // "mine" id, i cant flip. Tetrimino cant be placed in the last
-        // to the left. due to origin point becoming undefined
+        // "mine" id, i cant flip. 
+        let canRotate = this.canTetriminoRotate(tetrimino);
+        if (!canRotate) {
+            return tetrimino;
+        }
         let movedTetriminoSquares = [];
-        let rotatedInstructions = this.rotateMatrix(tetrimino.instructions);
+        let rotatedInstructions = Utilities.rotateMatrix(tetrimino.instructions);
         tetrimino.instructions = rotatedInstructions;
         let origin = tetrimino.getOriginPoint();
 
@@ -152,14 +167,55 @@ class Game {
         this.graphics.draw(dataList);
     }
 
-    rotateMatrix(matrix) {
-        let newMatrix = [[], [], [], []];
-        for (let i = 3; i >= 0; i--) {
-            for (let j = 0; j < 4; j++) {
-                newMatrix[j].push(matrix[i][j]);
+    clear(rowsToClear, board) {
+        let squaresToMove = [];
+        let numbOfRows = rowsToClear.length;
+        let firstRow = rowsToClear[0];
+
+        for (let row of rowsToClear) {
+            for (let square of row) {
+                square.setNeutral();
             }
         }
-        return newMatrix;
+        for (let i = 0; i < firstRow[0].y; i++) {
+            for (let j = 0; j < firstRow.length; j++) {
+                if (board.data[i][j].pieceHere) {
+                    squaresToMove.push({
+                        value: board.data[i][j],
+                        label: board.data[i][j].color
+                    });
+                }  
+            }
+        }
+        for (let square of squaresToMove) {
+            square.value.setNeutral();
+        }
+        for (let square of squaresToMove) {
+            let newSquare = board.moveSquare(square.value, 0, numbOfRows);
+            // have to fix this in the future
+            newSquare.pieceHere = true;
+            newSquare.setColor(square.label);
+        }
+    }
+
+    clearFullRows () {
+        let board = this.players[0].board;
+        let rowsToClear = [];
+
+        for (let row of board.data) {
+            let squaresInLine = 0;
+            for (let square of row) {
+                if (square.pieceHere) {
+                    squaresInLine++;
+                }
+            }
+            if (squaresInLine == row.length) {
+                rowsToClear.push(row);
+            }
+        }
+        if (rowsToClear.length > 0) {
+            this.clear(rowsToClear, board);
+        }
     }
 
     start () {
@@ -179,7 +235,6 @@ class Game {
         this.update();
     }
 
-
     update() {
         let noTetrimino = true;
         let tetrimino;
@@ -197,6 +252,17 @@ class Game {
                 tetrimino = this.rotate(tetrimino);
                 this.drawPlayers();
             }
+            if (event.code == "KeyS") {
+                if (tetrimino == null) {
+                    noTetrimino = true;
+                    return;
+                }
+                tetrimino = this.moveTetrimino(tetrimino, "down");
+                if (!tetrimino) {
+                    this.clearFullRows();
+                }
+                this.drawPlayers();
+            }
         });
 
         window.setInterval(function () {
@@ -210,6 +276,9 @@ class Game {
                 }
                 else { 
                     tetrimino = this.moveTetrimino(tetrimino, "down");
+                    if (!tetrimino) {
+                        this.clearFullRows();
+                    }
                 }
             }
             this.drawPlayers();

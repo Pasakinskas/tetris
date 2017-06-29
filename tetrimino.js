@@ -7,6 +7,7 @@ class Tetrimino {
         this.color = templates[1];
         this.tetriminoSquares;
         this.originPoint = null;
+        this.id = Utilities.randinteger(9999);
     }
 
     setTetriminoSquares(squareList) {
