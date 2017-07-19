@@ -21,9 +21,9 @@ class Square {
         this.color = null;
     }
 
-    setPieceHere(tetrimino) {
+    setPieceHere(color, id) {
         this.pieceHere = true;
-        this.color = tetrimino.color;
-        this.id = tetrimino.id;
+        this.color = color;
+        this.id = id;
     }
 }

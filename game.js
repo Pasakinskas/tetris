@@ -3,12 +3,12 @@ class Game {
         this.boardWidth = boardWidth;
         this.boardHeight = boardHeight;
         const self = this;
+        this.speed = 500;
     }
 
-    placeTetrimino(name) {
-        // will need that id for piece, so it can decide, can it
-        // actually rotate. To differenciate between itself and others.
-        let tetrimino = new Tetrimino(name);
+    placeTetrimino(name, idStart) {
+        let id = idStart;
+        let tetrimino = new Tetrimino(name, id);
         let startPoint = Math.round(this.players[0].board.width / 2) - 2;
         let squaresOfPiece = [];
         let tetriOriginSquare = this.players[0].board.fetchSquare(startPoint, 0);
@@ -20,7 +20,7 @@ class Game {
                 if (tetrimino.instructions[j][i] == 1) {
                     let squareTetriHere = this.players[0].board.fetchSquare(i + startPoint, j);
 
-                    squareTetriHere.setPieceHere(tetrimino);
+                    squareTetriHere.setPieceHere(tetrimino.color, tetrimino.id);
                     squaresOfPiece.push(squareTetriHere);
                 }
             }
@@ -36,14 +36,15 @@ class Game {
                 "left": square.neighbors.leftNeighbor,
                 "right": square.neighbors.rightNeighbor
             };
-
+            // if false - squares have no neighbor - they
+            // have met a wall.
             if (!dirDict[direction]) {
-                console.log("neradau kaimyno, siena");
                 return false;
             }
+            // the neighbor of a square is already occupied
+            // by a different piece
             if (dirDict[direction].pieceHere &&
                 !tetrimino.tetriminoSquares.includes(dirDict[direction])) {
-                console.log("judejimo kryptimi sutinku kita tetrimina");
                 return false;
             }
         }
@@ -59,6 +60,7 @@ class Game {
             for (let j = 0; j < 4; j++) {
                 if (rotatedInstructions[j][i] == 1) {
                     let rotatedSquare = this.players[0].board.fetchSquare(origin.x + i, origin.y + j);
+
                     if (!rotatedSquare) {
                         return false;
                     }
@@ -114,7 +116,7 @@ class Game {
             let moveY = dirDict[direction][1];
             let newSquare = this.players[0].board.moveSquare(square, moveX, moveY);
             
-            newSquare.setPieceHere(tetrimino);
+            newSquare.setPieceHere(tetrimino.color, tetrimino.id);
             movedTetriminoSquares.push(newSquare);
         }
 
@@ -124,12 +126,11 @@ class Game {
     }
 
     rotate(tetrimino) {
-        // if new piece in place of pieces, that do not have
-        // "mine" id, i cant flip. 
         let canRotate = this.canTetriminoRotate(tetrimino);
         if (!canRotate) {
             return tetrimino;
         }
+
         let movedTetriminoSquares = [];
         let rotatedInstructions = Utilities.rotateMatrix(tetrimino.instructions);
         tetrimino.instructions = rotatedInstructions;
@@ -142,8 +143,9 @@ class Game {
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 if (rotatedInstructions[j][i] == 1) {
-                    this.players[0].board.fetchSquare(origin.x + i, origin.y + j).setPieceHere(tetrimino);
-                    movedTetriminoSquares.push(this.players[0].board.fetchSquare(origin.x + i, origin.y + j));
+                    let rotatedSquare = this.players[0].board.moveSquare(origin, i, j);
+                    rotatedSquare.setPieceHere(tetrimino.color, tetrimino.id);
+                    movedTetriminoSquares.push(rotatedSquare);
                 }
             }
         }
@@ -192,10 +194,13 @@ class Game {
         }
         for (let square of squaresToMove) {
             let newSquare = board.moveSquare(square.value, 0, numbOfRows);
-            // have to fix this in the future
             newSquare.pieceHere = true;
             newSquare.setColor(square.label);
         }
+    }
+    
+    assignPoints (clearedRowNumb) {
+        return Math.pow(clearedRowNumb, 2) * 100;
     }
 
     clearFullRows () {
@@ -215,7 +220,17 @@ class Game {
         }
         if (rowsToClear.length > 0) {
             this.clear(rowsToClear, board);
+            return this.assignPoints(rowsToClear.length);
         }
+        else {
+            return 0;
+        }
+    }
+
+    getScore (points) {
+        var output = document.getElementById("game-output");
+        output.innerHTML = "";
+        output.innerHTML += points + " pts";
     }
 
     start () {
@@ -237,7 +252,10 @@ class Game {
 
     update() {
         let noTetrimino = true;
+        let keyNotPressed = true;
         let tetrimino;
+        let idStart = 0;
+        let points = 0;
 
         document.addEventListener("keydown", () => {
             if (event.code == "KeyD") {
@@ -248,9 +266,10 @@ class Game {
                 tetrimino = this.moveTetrimino(tetrimino, "left");
                 this.drawPlayers();
             }
-            if (event.code == "KeyW") {
+            if (event.code == "KeyW" && keyNotPressed) {
                 tetrimino = this.rotate(tetrimino);
                 this.drawPlayers();
+                keyNotPressed = false;
             }
             if (event.code == "KeyS") {
                 if (tetrimino == null) {
@@ -259,16 +278,22 @@ class Game {
                 }
                 tetrimino = this.moveTetrimino(tetrimino, "down");
                 if (!tetrimino) {
-                    this.clearFullRows();
+                    points = points + this.clearFullRows();
+                    this.getScore(points);
                 }
                 this.drawPlayers();
             }
         });
 
-        window.setInterval(function () {
+        document.addEventListener("keyup", () => {
+            keyNotPressed = true;
+        });
+
+        window.setInterval(() => {
             if (noTetrimino === true) {
-                tetrimino = this.placeTetrimino(Utilities.randLetter());
+                tetrimino = this.placeTetrimino(Utilities.randLetter(), idStart);
                 noTetrimino = false;
+                idStart++;
             }
             else {
                 if (tetrimino == null) {
@@ -282,7 +307,7 @@ class Game {
                 }
             }
             this.drawPlayers();
-        }.bind(this), 500);
+        }, this.speed);
     }
 }
 

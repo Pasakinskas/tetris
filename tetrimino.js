@@ -1,5 +1,5 @@
 class Tetrimino {
-    constructor(name) {
+    constructor(name, id) {
         let templates = this.createPiece(name);
 
         this.name = name;
@@ -7,7 +7,7 @@ class Tetrimino {
         this.color = templates[1];
         this.tetriminoSquares;
         this.originPoint = null;
-        this.id = Utilities.randinteger(9999);
+        this.id = id;
     }
 
     setTetriminoSquares(squareList) {
