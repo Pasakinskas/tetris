@@ -4,6 +4,12 @@ class Game {
         this.boardHeight = boardHeight;
         const self = this;
         this.speed = 500;
+
+        this.noTetrimino = true;
+        this.keyNotPressed = true;
+        this.tetrimino;
+        this.idStart = 0;
+        this.points = 0;
     }
 
     placeTetrimino(name, idStart) {
@@ -220,17 +226,46 @@ class Game {
         }
         if (rowsToClear.length > 0) {
             this.clear(rowsToClear, board);
-            return this.assignPoints(rowsToClear.length);
+            this.points += this.assignPoints(rowsToClear.length);
+            return;
         }
         else {
             return 0;
         }
     }
 
-    getScore (points) {
+    getScore () {
         var output = document.getElementById("game-output");
         output.innerHTML = "";
-        output.innerHTML += points + " pts";
+        output.innerHTML += this.points + " pts";
+    }
+
+    movement () {
+        if (event.code == "KeyD") {
+            this.tetrimino = this.moveTetrimino(this.tetrimino, "right");
+            this.drawPlayers();
+        }
+        if (event.code == "KeyA") {
+            this.tetrimino = this.moveTetrimino(this.tetrimino, "left");
+            this.drawPlayers();
+        }
+        if (event.code == "KeyW" && this.keyNotPressed) {
+            this.tetrimino = this.rotate(this.tetrimino);
+            this.drawPlayers();
+            this.keyNotPressed = false;
+        }
+        if (event.code == "KeyS") {
+            if (this.tetrimino == null) {
+                this.noTetrimino = true;
+                return;
+            }
+            this.tetrimino = this.moveTetrimino(this.tetrimino, "down");
+            if (!this.tetrimino) {
+                this.clearFullRows();
+                this.getScore();
+            }
+            this.drawPlayers();
+        }
     }
 
     start () {
@@ -246,62 +281,32 @@ class Game {
             emptySquare: "black"
         });
 
+        document.addEventListener("keydown", () => {
+            this.movement();
+        });
+
+        document.addEventListener("keyup", () => {
+            this.keyNotPressed = true;
+        });
+
         this.drawPlayers();
         this.update();
     }
 
     update() {
-        let noTetrimino = true;
-        let keyNotPressed = true;
-        let tetrimino;
-        let idStart = 0;
-        let points = 0;
-
-        document.addEventListener("keydown", () => {
-            if (event.code == "KeyD") {
-                tetrimino = this.moveTetrimino(tetrimino, "right");
-                this.drawPlayers();
-            }
-            if (event.code == "KeyA") {
-                tetrimino = this.moveTetrimino(tetrimino, "left");
-                this.drawPlayers();
-            }
-            if (event.code == "KeyW" && keyNotPressed) {
-                tetrimino = this.rotate(tetrimino);
-                this.drawPlayers();
-                keyNotPressed = false;
-            }
-            if (event.code == "KeyS") {
-                if (tetrimino == null) {
-                    noTetrimino = true;
-                    return;
-                }
-                tetrimino = this.moveTetrimino(tetrimino, "down");
-                if (!tetrimino) {
-                    points = points + this.clearFullRows();
-                    this.getScore(points);
-                }
-                this.drawPlayers();
-            }
-        });
-
-        document.addEventListener("keyup", () => {
-            keyNotPressed = true;
-        });
-
         window.setInterval(() => {
-            if (noTetrimino === true) {
-                tetrimino = this.placeTetrimino(Utilities.randLetter(), idStart);
-                noTetrimino = false;
-                idStart++;
+            if (this.noTetrimino === true) {
+                this.tetrimino = this.placeTetrimino(Utilities.randLetter(), this.idStart);
+                this.noTetrimino = false;
+                this.idStart++;
             }
             else {
-                if (tetrimino == null) {
-                    noTetrimino = true;
+                if (this.tetrimino == null) {
+                    this.noTetrimino = true;
                 }
                 else { 
-                    tetrimino = this.moveTetrimino(tetrimino, "down");
-                    if (!tetrimino) {
+                    this.tetrimino = this.moveTetrimino(this.tetrimino, "down");
+                    if (!this.tetrimino) {
                         this.clearFullRows();
                     }
                 }
